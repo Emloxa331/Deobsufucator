@@ -11,6 +11,35 @@ require(['vs/editor/editor.main'], function () {
     });
 });
 
+/* =========================================
+   MÜZİK VE SİSTEM KONTROLLERİ
+========================================= */
+let isMusicPlaying = false;
+const bgm = document.getElementById("bgm");
+bgm.volume = 0.3;
+
+// Siteye ilk tıklandığında müziği başlat (Tarayıcı otomatik ses kuralları gereği tık şarttır)
+document.addEventListener('click', function initAudio() {
+    if(!isMusicPlaying) { window.toggleMusic(); }
+    document.removeEventListener('click', initAudio);
+}, {once: true});
+
+window.toggleMusic = function() {
+    if (bgm.paused) {
+        bgm.play().catch(e => console.log("Otomatik oynatma engellendi."));
+        document.getElementById("musicToggle").innerText = "⏸️ Sesi Kapat";
+        isMusicPlaying = true;
+    } else {
+        bgm.pause();
+        document.getElementById("musicToggle").innerText = "🎵 Sesi Aç";
+        isMusicPlaying = false;
+    }
+};
+
+window.changeVolume = function() {
+    bgm.volume = document.getElementById("volSlider").value;
+};
+
 function logMsg(msg, type = "instance") {
     const logger = document.getElementById("logger");
     const entry = document.createElement("div");
@@ -20,93 +49,51 @@ function logMsg(msg, type = "instance") {
     logger.scrollTop = logger.scrollHeight;
 }
 
-window.clearInput = function() {
-    if(editor) editor.setValue("");
-    logMsg("Girdi alanı temizlendi.", "system");
-};
+window.clearInput = () => { if(editor) editor.setValue(""); logMsg("Girdi alanı temizlendi.", "system"); };
+window.clearAll = () => { document.getElementById("viewport").innerHTML = ""; document.getElementById("logger").innerHTML = '<div class="log-entry system">[SİSTEM] Ortam sıfırlandı.</div>'; document.getElementById("finalOutput").value = ""; };
 
-window.clearAll = function() {
-    document.getElementById("viewport").innerHTML = "";
-    document.getElementById("logger").innerHTML = '<div class="log-entry system">[SİSTEM] Ortam sıfırlandı.</div>';
-    document.getElementById("finalOutput").value = "";
-};
+/* =========================================
+   DİNAMİK LUA VİRTUAL MACHINE (FENGARI HACK)
+========================================= */
+let dynamicallyDecryptedCode = null;
 
-window.startEmulator = async function() {
-    try {
-        if(!editor) return;
-        window.clearAll();
-        let code = editor.getValue();
-        if(code.trim() === "") return;
-        
-        document.getElementById("finalOutput").value = "-- Analiz ediliyor...\n";
-        document.getElementById("executeBtn").disabled = true;
-        
-        await executeEngine(code);
-        
-        document.getElementById("executeBtn").disabled = false;
-    } catch (e) {
-        logMsg(`[ÇÖKME] Sistem Hatası: ${e.message}`, "warn");
-        document.getElementById("executeBtn").disabled = false;
+// Lua içinden JS'ye veri göndermek için kanca (hook)
+window.reportDecrypted = function(code) {
+    if (code && code.trim().length > 10) {
+        dynamicallyDecryptedCode = code;
+        logMsg("[VM HACK] Dinamik VM şifreyi İÇERİDEN çözdü! Saf Kod Yakalandı!", "magic");
     }
 };
 
-/* ==========================================================
-   1. HEURISTIC DEOBFUSCATOR (ŞİFRE KIRICI MOTOR)
-   Gizli dizeleri (Hex, Byte, Math, Base64) analiz eder, 
-   içindeki saklı linkleri dışarı çıkarır.
-========================================================== */
-function advancedDeobfuscator(code) {
-    let originalCode = code;
-    let isObfuscated = false;
+// Obfuscator'ı kandırmak için sahte Roblox ortamını Lua'ya enjekte ediyoruz
+const LUA_SANDBOX_HOOKS = `
+    local js = require "js"
+    local global = js.global
+    
+    -- Loadstring'i Hookla (Şifre Çözülüp Yürütülmeden Hemen Önce Kodu Çal!)
+    local old_loadstring = loadstring or load
+    _G.loadstring = function(code, chunk)
+        global:reportDecrypted(code)
+        return old_loadstring(code, chunk)
+    end
+    _G.load = _G.loadstring
+    
+    -- Temel sahte çevreyi oluştur
+    _G.game = setmetatable({}, {
+        __index = function(t,k) 
+            return function() return "Mocked" end 
+        end
+    })
+    _G.getfenv = function() return _G end
+    _G.setfenv = function() return _G end
+`;
 
-    if (code.includes("EMLOXA WARE") || code.includes("return (function(") || code.includes("getfenv") || code.match(/\{[\s\d\-\+\*\/,]+\}/)) {
-        isObfuscated = true;
-        logMsg("[ŞİFRE KIRICI] Obfuscation tespit edildi! Kripto bloklar çözülüyor...", "magic");
-    }
-
-    // 1. Lua Byte Çözücü (\104\116 -> ht)
-    code = code.replace(/\\(\d{1,3})/g, (m, dec) => String.fromCharCode(parseInt(dec, 10)));
-
-    // 2. Lua Hex Çözücü (\x68\x74 -> ht)
-    code = code.replace(/\\x([0-9A-Fa-f]{2})/g, (m, hex) => String.fromCharCode(parseInt(hex, 16)));
-
-    // 3. String.char(...) Çözücü
-    code = code.replace(/string\.char\(([\d\s,]+)\)/g, (m, nums) => {
-        return '"' + nums.split(',').map(n => String.fromCharCode(parseInt(n.trim()))).join('') + '"';
-    });
-
-    // 4. Parçalı Dizeleri Birleştir ("h".."t".."t".."p")
-    code = code.replace(/"\s*\.\.\s*"/g, '').replace(/'\s*\.\.\s*'/g, '');
-
-    // 5. Gizli URL Avcısı (Raw linkleri şifrelerin arasından cımbızla çek!)
-    let urls = code.match(/https?:\/\/[a-zA-Z0-9.\/\-_\?=]+/g);
-    if (urls) {
-        let addedLink = false;
-        urls.forEach(url => {
-            // w3.org gibi standart Lua şemalarını yoksay
-            if (!url.includes("w3.org") && !originalCode.includes(`HttpGet("${url}")`) && !originalCode.includes(`HttpGet('${url}')`)) {
-                logMsg(`[ŞİFRE KIRICI] Şifrelerin altında gizli hedef bulundu: ${url}`, "magic");
-                // Bulduğumuz gizli linki ana koda ENJEKTE EDİYORUZ ki motor oraya da gitsin!
-                originalCode += `\nloadstring(game:HttpGet("${url}"))()\n`;
-                addedLink = true;
-            }
-        });
-        if(addedLink) logMsg("[ŞİFRE KIRICI] Gizli hedefler Ağ Tarayıcısına aktarıldı.", "system");
-    }
-
-    return originalCode; 
-}
-
-/* ==========================================================
-   2. RECURSIVE FETCHER (ZİNCİRLEME AĞ MOTORU)
-========================================================== */
+/* =========================================
+   AĞ İNDİRME MOTORU (TÜM LİNKLERİ ÇEKER)
+========================================= */
 async function fetchAllLinks(code, depth = 0) {
-    if (depth > 10) return code; // Sonsuz döngü koruması
+    if (depth > 10) return code;
 
-    // Önce kodu Şifre Kırıcıdan (Deobfuscator) geçir
-    code = advancedDeobfuscator(code);
-
-    // Koddaki TÜM HttpGet linklerini bul
     const httpRegex = /(?:loadstring\()?\s*game:HttpGet(?:Async)?\(\s*(['"])(https?:\/\/[^\1]+)\1\s*\)\s*(?:\)\(\))?/ig;
     let matches = [...code.matchAll(httpRegex)];
 
@@ -114,144 +101,132 @@ async function fetchAllLinks(code, depth = 0) {
         for (let match of matches) {
             let fullMatch = match[0];
             let url = match[2];
-            
-            logMsg(`[AĞ İSTEĞİ ${depth+1}] Sunucuya sızılıyor: ${url}`, "http");
+            logMsg(`[AĞ İSTEĞİ ${depth+1}] Taranıyor: ${url}`, "http");
             
             try {
                 let fetchedCode = "";
-                // Plan A: Doğrudan İstek (Hızlı)
                 try {
                     let res = await fetch(url);
                     if(res.ok) fetchedCode = await res.text();
-                    else throw new Error("Doğrudan erişim reddedildi");
+                    else throw new Error();
                 } catch(e) {
-                    // Plan B: CORS Tüneli (Güvenli)
-                    logMsg(`[TÜNEL] Tarayıcı engeli aşılarak Proxy üzerinden çekiliyor...`, "warn");
                     let res2 = await fetch("https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(url));
                     if(res2.ok) fetchedCode = await res2.text();
-                    else throw new Error("Bağlantı koptu");
                 }
 
-                if(fetchedCode && fetchedCode.trim() !== "") {
-                    logMsg(`[BAŞARILI] Katman ${depth+1} kodu başarıyla indirildi.`, "system");
-                    // Eski link komutunu, indirdiğimiz GERÇEK kod ile değiştiriyoruz
-                    code = code.replace(fullMatch, "\n-- [[ EMLOXA ENGINE KATMAN " + (depth+1) + " ]]\n" + fetchedCode + "\n-- [[ KATMAN SONU ]]\n");
+                if(fetchedCode) {
+                    logMsg(`[BAŞARILI] Katman ${depth+1} indirildi.`, "system");
+                    code = code.replace(fullMatch, "\n-- [EMLOXA KATMAN " + (depth+1) + "]\n" + fetchedCode + "\n");
                 }
-            } catch (error) {
-                logMsg(`[HATA] URL okunamadı: ${url}`, "warn");
-                code = code.replace(fullMatch, "-- [EMLOXA: Bağlantı Başarısız]");
-            }
+            } catch (error) {}
         }
-        
-        // Tüm linkler değişti. İndirdiğimiz yeni kodlarda BAŞKA link veya şifre var mı diye zinciri tekrar başlat!
         return await fetchAllLinks(code, depth + 1);
     }
-    
-    return code; // İçinde link kalmadığında (sadece saf UI kodları kaldığında) bu döner.
+    return code; 
 }
 
-/* ==========================================================
-   3. ANA YÜRÜTÜCÜ VE SANAL EKRAN (UI) ÇİZİCİ
-========================================================== */
-async function executeEngine(initialCode) {
-    logMsg("Tüm ağ trafiği ve şifre katmanları analiz ediliyor...", "warn");
-    
-    // Ağ ve Şifre kırma motorunu çalıştır
-    let finalRawCode = await fetchAllLinks(initialCode);
-    
-    // Ulaştığımız EN SAF kodu çıktı kutusuna yazdır
-    document.getElementById("finalOutput").value = "-- [EMLOXA V3 DEOBFUSCATOR FİNAL ÇIKTISI]\n\n" + finalRawCode;
-    logMsg("Tarama bitti. Ulaşılan en ham Roblox kodu (Output) kutusuna döküldü.", "magic");
+/* =========================================
+   ANA YÜRÜTÜCÜ 
+========================================= */
+window.startEmulator = async function() {
+    try {
+        if(!editor || editor.getValue().trim() === "") return;
+        window.clearAll();
+        document.getElementById("executeBtn").disabled = true;
+        document.getElementById("finalOutput").value = "-- Analiz ediliyor...\n";
+        
+        let initialCode = editor.getValue();
+        dynamicallyDecryptedCode = null; // Sıfırla
 
-    // Şimdi ulaştığımız bu temiz kodu UI olarak ekrana (Viewport) çiz
-    const lines = finalRawCode.split('\n');
+        logMsg("Tüm ağ trafiği indiriliyor...", "warn");
+        
+        // 1. Önce koddaki linkleri indir
+        let codeToAnalyze = await fetchAllLinks(initialCode);
+
+        // 2. Eğer Obfuscation varsa (Örn EMLOXA WARE) kodu LUA VM'E ATARAK ÇALIŞTIR
+        if (typeof fengari !== 'undefined' && codeToAnalyze.includes("getfenv") || codeToAnalyze.includes("EMLOXA")) {
+            logMsg("[SİSTEM] Ağır şifreleme tespit edildi. Sanal Makineye (VM) gönderiliyor...", "warn");
+            try {
+                // Kodu tarayıcıda gerçek Lua olarak çalıştır ve hookla
+                fengari.load(LUA_SANDBOX_HOOKS + "\n" + codeToAnalyze)();
+            } catch (e) {
+                logMsg(`[VM UYARISI] Kodda bazı özel kısımlar var, motor atladı.`, "warn");
+            }
+        }
+
+        // 3. Eğer Lua VM içindeki şifreyi çözdüyse (dynamicallyDecryptedCode dolduysa), asıl kodu o yap!
+        if (dynamicallyDecryptedCode) {
+            codeToAnalyze = dynamicallyDecryptedCode;
+            logMsg("[BAŞARILI] Şifre parçalandı ve ham koda ulaşıldı!", "system");
+            
+            // Eğer içinden çıkan şifresiz kodda yine link varsa (Russian Doll misali), bir daha indir!
+            codeToAnalyze = await fetchAllLinks(codeToAnalyze);
+        }
+
+        // 4. Çıktıyı Ekrana Yazdır
+        document.getElementById("finalOutput").value = "-- [EMLOXA V3 FİNAL DİNAMİK ÇIKTI]\n\n" + codeToAnalyze;
+        logMsg("Tarama bitti. En ham Roblox kodu Output kutusuna aktarıldı.", "magic");
+
+        // 5. Ham Kodu UI olarak Ekrana Çiz (Regex Fallback)
+        parseUI(codeToAnalyze);
+
+        document.getElementById("executeBtn").disabled = false;
+    } catch (e) {
+        logMsg(`[ÇÖKME] Sistem Hatası: ${e.message}`, "warn");
+        document.getElementById("executeBtn").disabled = false;
+    }
+};
+
+function parseUI(code) {
+    const lines = code.split('\n');
     let variables = {}; 
     const viewport = document.getElementById("viewport");
 
     lines.forEach((line) => {
         line = line.trim();
         if (line === "" || line.startsWith("--")) return;
-
         try {
-            // Nesne oluşturma (local myFrame = Instance.new("Frame"))
             let instanceMatch = line.match(/(?:local\s+)?([a-zA-Z0-9_]+)\s*=\s*Instance\.new\((?:['"])([a-zA-Z0-9_]+)(?:['"])[^)]*\)/);
             if (instanceMatch) {
-                let varName = instanceMatch[1];
-                let className = instanceMatch[2];
-                logMsg(`[UI OLUŞTURULDU] ${className} (${varName})`, "instance");
-
+                let varName = instanceMatch[1]; let className = instanceMatch[2];
+                logMsg(`[UI BULUNDU] ${className} (${varName})`, "instance");
                 let el = document.createElement("div");
-                if (className === "Frame" || className === "ScreenGui" || className === "ScrollingFrame") el.className = "rbx-frame";
+                if (className === "Frame" || className === "ScreenGui") el.className = "rbx-frame";
                 if (className === "TextButton") el.className = "rbx-textbutton";
                 if (className === "TextLabel") el.className = "rbx-textlabel";
                 if (className === "UICorner") el.setAttribute("data-type", "uicorner");
-                
                 variables[varName] = { element: el, type: className, parent: null };
                 return;
             }
 
-            // Nesne özellikleri (myFrame.Size = UDim2.new(...))
             let propMatch = line.match(/([a-zA-Z0-9_]+)\.([a-zA-Z0-9_]+)\s*=\s*(.+)/);
             if (propMatch) {
-                let varName = propMatch[1];
-                let prop = propMatch[2];
-                let value = propMatch[3];
-
-                if (!variables[varName]) return; 
-                let obj = variables[varName];
+                let varName = propMatch[1]; let prop = propMatch[2]; let value = propMatch[3];
+                if (!variables[varName]) return; let obj = variables[varName];
                 
                 if (prop === "Size" && value.includes("UDim2.new")) {
-                    let nums = value.match(/[-]?\d+(\.\d+)?/g);
-                    if(nums && nums.length >= 4) {
-                        obj.element.style.width = nums[1] + "px";
-                        obj.element.style.height = nums[3] + "px";
-                    }
-                }
-                else if (prop === "Position" && value.includes("UDim2.new")) {
-                    let nums = value.match(/[-]?\d+(\.\d+)?/g);
-                    if(nums && nums.length >= 4) {
-                        obj.element.style.position = "absolute";
-                        obj.element.style.left = nums[1] + "px";
-                        obj.element.style.top = nums[3] + "px";
-                    }
-                }
-                else if (prop === "BackgroundColor3" && value.includes("Color3.fromRGB")) {
-                    let nums = value.match(/\d+/g);
-                    if(nums && nums.length >= 3) {
-                        obj.element.style.backgroundColor = `rgb(${nums[0]}, ${nums[1]}, ${nums[2]})`;
-                    }
-                }
-                else if (prop === "Transparency" || prop === "BackgroundTransparency") {
+                    let nums = value.match(/[-]?\d+(\.\d+)?/g); if(nums && nums.length >= 4) { obj.element.style.width = nums[1] + "px"; obj.element.style.height = nums[3] + "px"; }
+                } else if (prop === "Position" && value.includes("UDim2.new")) {
+                    let nums = value.match(/[-]?\d+(\.\d+)?/g); if(nums && nums.length >= 4) { obj.element.style.position = "absolute"; obj.element.style.left = nums[1] + "px"; obj.element.style.top = nums[3] + "px"; }
+                } else if (prop === "BackgroundColor3" && value.includes("Color3.fromRGB")) {
+                    let nums = value.match(/\d+/g); if(nums && nums.length >= 3) { obj.element.style.backgroundColor = `rgb(${nums[0]}, ${nums[1]}, ${nums[2]})`; }
+                } else if (prop === "Transparency" || prop === "BackgroundTransparency") {
                     obj.element.style.opacity = 1 - parseFloat(value);
-                }
-                else if (prop === "Text") {
-                    let textVal = value.replace(/^["']|["']$/g, ""); 
-                    obj.element.textContent = textVal;
-                }
-                else if (prop === "CornerRadius" && value.includes("UDim.new")) {
-                    let nums = value.match(/\d+/g);
-                    if(nums && nums.length >= 2) {
-                        obj.cornerRadius = nums[1] + "px";
-                    }
-                }
-                else if (prop === "Parent") {
+                } else if (prop === "Text") {
+                    obj.element.textContent = value.replace(/^["']|["']$/g, ""); 
+                } else if (prop === "CornerRadius" && value.includes("UDim.new")) {
+                    let nums = value.match(/\d+/g); if(nums && nums.length >= 2) { obj.cornerRadius = nums[1] + "px"; }
+                } else if (prop === "Parent") {
                     let parentVar = value;
                     if (parentVar.includes("game.CoreGui") || parentVar.includes("game.Players") || parentVar.includes("Workspace") || parentVar.includes("Parent")) {
                         viewport.appendChild(obj.element);
                     } else if (variables[parentVar]) {
                         if (obj.type === "UICorner") {
-                            variables[parentVar].element.style.borderRadius = obj.cornerRadius || "8px";
-                            variables[parentVar].element.style.overflow = "hidden";
-                        } else {
-                            variables[parentVar].element.appendChild(obj.element);
-                        }
+                            variables[parentVar].element.style.borderRadius = obj.cornerRadius || "8px"; variables[parentVar].element.style.overflow = "hidden";
+                        } else { variables[parentVar].element.appendChild(obj.element); }
                     }
                 }
             }
-        } catch (e) {
-            // Hata atla
-        }
+        } catch (e) {}
     });
-
-    logMsg("İşlem başarıyla sonlandırıldı.", "system");
 }
