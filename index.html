@@ -2,18 +2,21 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>EMLOXA V3 - Web Deobfuscator & UI Sandbox</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
 </head>
 <body>
     <div class="header">
-        <h1>EMLOXA V3 <span>// LUAU UI SANDBOX & DEOBFUSCATOR</span></h1>
+        <div class="title-container">
+            <h1>EMLOXA V3</h1>
+            <span>// LUAU UI SANDBOX & DEOBFUSCATOR</span>
+        </div>
         <div class="controls">
-            <button id="clearInputBtn" onclick="clearInput()">🧹 Girdiyi Sil</button>
-            <button id="executeBtn" onclick="startEmulator()">🚀 Çalıştır & Analiz Et</button>
-            <button id="clearBtn" onclick="clearAll()">🗑️ Her Şeyi Sıfırla</button>
+            <button id="clearInputBtn" onclick="window.clearInput()">🧹 Girdiyi Sil</button>
+            <button id="executeBtn" onclick="window.startEmulator()">🚀 Çalıştır & Analiz Et</button>
+            <button id="clearBtn" onclick="window.clearAll()">🗑️ Sıfırla</button>
         </div>
     </div>
 
@@ -33,7 +36,7 @@
 
             <div class="panel-header">📡 Ağ & Olay Günlüğü (Logger)</div>
             <div id="logger">
-                <div class="log-entry system">[SİSTEM] Emloxa V3 Sandbox başlatıldı. Script bekleniyor...</div>
+                <div class="log-entry system">[SİSTEM] Emloxa V3 Sandbox hazır. Script bekleniyor...</div>
             </div>
         </div>
     </div>
