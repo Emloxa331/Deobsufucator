@@ -3,40 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>EMLOXA V3 - Web Deobfuscator & UI Sandbox</title>
+    <title>EMLOXA V3 - Heuristic Deobfuscator & Executor Sandbox</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
 </head>
 <body>
     <div class="header">
         <div class="title-container">
-            <h1>EMLOXA V3</h1>
-            <span>// LUAU UI SANDBOX & DEOBFUSCATOR</span>
+            <h1>EMLOXA V3 <span>// EXECUTOR & DEOBFUSCATOR ENGINE</span></h1>
         </div>
         <div class="controls">
             <button id="clearInputBtn" onclick="window.clearInput()">🧹 Girdiyi Sil</button>
-            <button id="executeBtn" onclick="window.startEmulator()">🚀 Çalıştır & Analiz Et</button>
-            <button id="clearBtn" onclick="window.clearAll()">🗑️ Sıfırla</button>
+            <button id="executeBtn" onclick="window.startEmulator()">🚀 Taramayı Başlat & Çöz</button>
+            <button id="clearBtn" onclick="window.clearAll()">🗑️ Sistemi Sıfırla</button>
         </div>
     </div>
 
     <div class="main-container">
         <div class="panel left-panel">
-            <div class="panel-header">📝 Obfuscated Input (Scripti Buraya Girin)</div>
+            <div class="panel-header">📝 OBFUSCATED INPUT (Hedef Script / Link)</div>
             <div id="editor-container"></div>
             
-            <div class="panel-header output-header">🔓 Final Deobfuscated Script (Temiz Kod)</div>
-            <textarea id="finalOutput" readonly placeholder="Analiz bittikten sonra temiz kod burada belirecek..."></textarea>
+            <div class="panel-header output-header">🔓 FİNAL DEOBFUSCATED SCRİPT (Şifresi Kırılmış Saf Kod)</div>
+            <textarea id="finalOutput" readonly placeholder="Derin tarama bittikten sonra en saf Roblox kodu burada belirecek..."></textarea>
         </div>
 
         <div class="panel right-panel">
-            <div class="panel-header">🖥️ Sanal Roblox Ekranı (Viewport)</div>
+            <div class="panel-header">🖥️ SANAL ROBLOX EKRANI (Viewport)</div>
             <div id="viewport">
                 </div>
 
-            <div class="panel-header">📡 Ağ & Olay Günlüğü (Logger)</div>
+            <div class="panel-header">📡 AĞ & OLAY GÜNLÜĞÜ (Terminal)</div>
             <div id="logger">
-                <div class="log-entry system">[SİSTEM] Emloxa V3 Sandbox hazır. Script bekleniyor...</div>
+                <div class="log-entry system">[SİSTEM] Emloxa V3 Sandbox Engine Başlatıldı.</div>
+                <div class="log-entry system">[SİSTEM] Derin Şifre Kırıcı (Heuristic Deobfuscator) Aktif.</div>
             </div>
         </div>
     </div>
