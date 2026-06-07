@@ -15,8 +15,7 @@ function logMsg(msg, type = "instance") {
     const logger = document.getElementById("logger");
     const entry = document.createElement("div");
     entry.className = `log-entry ${type}`;
-    const time = new Date().toLocaleTimeString();
-    entry.textContent = `[${time}] ${msg}`;
+    entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
     logger.appendChild(entry);
     logger.scrollTop = logger.scrollHeight;
 }
@@ -28,7 +27,7 @@ window.clearInput = function() {
 
 window.clearAll = function() {
     document.getElementById("viewport").innerHTML = "";
-    document.getElementById("logger").innerHTML = '<div class="log-entry system">[SİSTEM] Tüm ortam sıfırlandı.</div>';
+    document.getElementById("logger").innerHTML = '<div class="log-entry system">[SİSTEM] Ortam sıfırlandı.</div>';
     document.getElementById("finalOutput").value = "";
 };
 
@@ -37,96 +36,134 @@ window.startEmulator = async function() {
         if(!editor) return;
         window.clearAll();
         let code = editor.getValue();
+        if(code.trim() === "") return;
         
-        if(code.trim() === "") {
-            logMsg("Çalıştırılacak script bulunamadı!", "warn");
-            return;
-        }
-        
-        document.getElementById("finalOutput").value = "-- İnternet üzerindeki tüm ağlar taranıyor...\n";
-        
-        // İşlemin üst üste binmesini engellemek için butonu kısa süreliğine devre dışı bırak
+        document.getElementById("finalOutput").value = "-- Analiz ediliyor...\n";
         document.getElementById("executeBtn").disabled = true;
-        await processCode(code);
+        
+        await executeEngine(code);
+        
         document.getElementById("executeBtn").disabled = false;
-
-    } catch (error) {
-        logMsg(`[SİSTEM HATASI] Motor çöktü: ${error.message}`, "warn");
+    } catch (e) {
+        logMsg(`[ÇÖKME] Sistem Hatası: ${e.message}`, "warn");
         document.getElementById("executeBtn").disabled = false;
     }
 };
 
-// 🚀 YENİ NESİL ZİNCİRLEME EXECUTOR MOTORU (ÇİFT KATMANLI BYPASS)
-async function fetchAllLinks(code, depth = 0) {
-    if (depth > 10) {
-        logMsg("[GÜVENLİK] Maksimum derinliğe ulaşıldı (Sonsuz döngü engellendi).", "warn");
-        return code;
+/* ==========================================================
+   1. HEURISTIC DEOBFUSCATOR (ŞİFRE KIRICI MOTOR)
+   Gizli dizeleri (Hex, Byte, Math, Base64) analiz eder, 
+   içindeki saklı linkleri dışarı çıkarır.
+========================================================== */
+function advancedDeobfuscator(code) {
+    let originalCode = code;
+    let isObfuscated = false;
+
+    if (code.includes("EMLOXA WARE") || code.includes("return (function(") || code.includes("getfenv") || code.match(/\{[\s\d\-\+\*\/,]+\}/)) {
+        isObfuscated = true;
+        logMsg("[ŞİFRE KIRICI] Obfuscation tespit edildi! Kripto bloklar çözülüyor...", "magic");
     }
 
-    const httpRegex = /(?:loadstring\()?\s*game:HttpGet(?:Async)?\(\s*(['"])(https?:\/\/[^\1]+)\1\s*\)\s*(?:\)\(\))?/i;
-    let match = code.match(httpRegex);
+    // 1. Lua Byte Çözücü (\104\116 -> ht)
+    code = code.replace(/\\(\d{1,3})/g, (m, dec) => String.fromCharCode(parseInt(dec, 10)));
 
-    if (match) {
-        let fullMatch = match[0];
-        let url = match[2];
-        
-        logMsg(`[AĞ İSTEĞİ ${depth+1}] Hedef: ${url}`, "http");
-        
-        try {
-            let fetchedCode = "";
+    // 2. Lua Hex Çözücü (\x68\x74 -> ht)
+    code = code.replace(/\\x([0-9A-Fa-f]{2})/g, (m, hex) => String.fromCharCode(parseInt(hex, 16)));
 
-            // PLAN A: Doğrudan İstek (GitHub Raw gibi siteler için en hızlısı)
-            try {
-                let response = await fetch(url);
-                if (response.ok) {
-                    fetchedCode = await response.text();
-                    logMsg(`[BAŞARILI] Veri doğrudan kaynaktan çekildi.`, "system");
-                } else {
-                    throw new Error("Doğrudan erişim reddedildi.");
-                }
-            } catch (err1) {
-                // PLAN B: CORS Proxy (Eğer hedef site tarayıcıyı engellerse proxy ile vururuz)
-                logMsg(`[B-PLANI] Tarayıcı engeli algılandı. Tünel protokolü kullanılıyor...`, "warn");
-                let proxyUrl = "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(url);
-                
-                let response2 = await fetch(proxyUrl);
-                if (!response2.ok) throw new Error("Tünel bağlantısı da başarısız oldu.");
-                
-                fetchedCode = await response2.text();
-                logMsg(`[BAŞARILI] Veri tünel üzerinden çekildi.`, "system");
+    // 3. String.char(...) Çözücü
+    code = code.replace(/string\.char\(([\d\s,]+)\)/g, (m, nums) => {
+        return '"' + nums.split(',').map(n => String.fromCharCode(parseInt(n.trim()))).join('') + '"';
+    });
+
+    // 4. Parçalı Dizeleri Birleştir ("h".."t".."t".."p")
+    code = code.replace(/"\s*\.\.\s*"/g, '').replace(/'\s*\.\.\s*'/g, '');
+
+    // 5. Gizli URL Avcısı (Raw linkleri şifrelerin arasından cımbızla çek!)
+    let urls = code.match(/https?:\/\/[a-zA-Z0-9.\/\-_\?=]+/g);
+    if (urls) {
+        let addedLink = false;
+        urls.forEach(url => {
+            // w3.org gibi standart Lua şemalarını yoksay
+            if (!url.includes("w3.org") && !originalCode.includes(`HttpGet("${url}")`) && !originalCode.includes(`HttpGet('${url}')`)) {
+                logMsg(`[ŞİFRE KIRICI] Şifrelerin altında gizli hedef bulundu: ${url}`, "magic");
+                // Bulduğumuz gizli linki ana koda ENJEKTE EDİYORUZ ki motor oraya da gitsin!
+                originalCode += `\nloadstring(game:HttpGet("${url}"))()\n`;
+                addedLink = true;
             }
-
-            if (!fetchedCode || fetchedCode.trim() === "") throw new Error("Çekilen veri tamamen boş.");
-
-            // İndirilen kodu sisteme entegre et
-            code = code.replace(fullMatch, "\n-- EMLOXA_FETCH_START (" + url + ")\n" + fetchedCode + "\n-- EMLOXA_FETCH_END\n");
-
-            // Zincirleme taramaya devam et (İçinde başka link varsa onları da bulur)
-            return await fetchAllLinks(code, depth + 1);
-
-        } catch (error) {
-            logMsg(`[BAĞLANTI HATASI] ${url} çekilemedi: ${error.message}`, "warn");
-            // Hata alırsak döngünün kilitlenmemesi için o isteği siliyoruz ve kalanları aramaya devam ediyoruz.
-            code = code.replace(fullMatch, "-- [EMLOXA: Bağlantı Sağlanamadı - " + url + "]");
-            return await fetchAllLinks(code, depth + 1);
-        }
+        });
+        if(addedLink) logMsg("[ŞİFRE KIRICI] Gizli hedefler Ağ Tarayıcısına aktarıldı.", "system");
     }
-    
-    return code;
+
+    return originalCode; 
 }
 
-// 🖥️ ANA ANALİZ VE UI ÇİZİM MOTORU
-async function processCode(initialCode) {
-    logMsg("Script inceleniyor, ağ bağlantıları aranıyor...", "system");
+/* ==========================================================
+   2. RECURSIVE FETCHER (ZİNCİRLEME AĞ MOTORU)
+========================================================== */
+async function fetchAllLinks(code, depth = 0) {
+    if (depth > 10) return code; // Sonsuz döngü koruması
+
+    // Önce kodu Şifre Kırıcıdan (Deobfuscator) geçir
+    code = advancedDeobfuscator(code);
+
+    // Koddaki TÜM HttpGet linklerini bul
+    const httpRegex = /(?:loadstring\()?\s*game:HttpGet(?:Async)?\(\s*(['"])(https?:\/\/[^\1]+)\1\s*\)\s*(?:\)\(\))?/ig;
+    let matches = [...code.matchAll(httpRegex)];
+
+    if (matches.length > 0) {
+        for (let match of matches) {
+            let fullMatch = match[0];
+            let url = match[2];
+            
+            logMsg(`[AĞ İSTEĞİ ${depth+1}] Sunucuya sızılıyor: ${url}`, "http");
+            
+            try {
+                let fetchedCode = "";
+                // Plan A: Doğrudan İstek (Hızlı)
+                try {
+                    let res = await fetch(url);
+                    if(res.ok) fetchedCode = await res.text();
+                    else throw new Error("Doğrudan erişim reddedildi");
+                } catch(e) {
+                    // Plan B: CORS Tüneli (Güvenli)
+                    logMsg(`[TÜNEL] Tarayıcı engeli aşılarak Proxy üzerinden çekiliyor...`, "warn");
+                    let res2 = await fetch("https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(url));
+                    if(res2.ok) fetchedCode = await res2.text();
+                    else throw new Error("Bağlantı koptu");
+                }
+
+                if(fetchedCode && fetchedCode.trim() !== "") {
+                    logMsg(`[BAŞARILI] Katman ${depth+1} kodu başarıyla indirildi.`, "system");
+                    // Eski link komutunu, indirdiğimiz GERÇEK kod ile değiştiriyoruz
+                    code = code.replace(fullMatch, "\n-- [[ EMLOXA ENGINE KATMAN " + (depth+1) + " ]]\n" + fetchedCode + "\n-- [[ KATMAN SONU ]]\n");
+                }
+            } catch (error) {
+                logMsg(`[HATA] URL okunamadı: ${url}`, "warn");
+                code = code.replace(fullMatch, "-- [EMLOXA: Bağlantı Başarısız]");
+            }
+        }
+        
+        // Tüm linkler değişti. İndirdiğimiz yeni kodlarda BAŞKA link veya şifre var mı diye zinciri tekrar başlat!
+        return await fetchAllLinks(code, depth + 1);
+    }
     
-    // Ağ taramasını başlat
+    return code; // İçinde link kalmadığında (sadece saf UI kodları kaldığında) bu döner.
+}
+
+/* ==========================================================
+   3. ANA YÜRÜTÜCÜ VE SANAL EKRAN (UI) ÇİZİCİ
+========================================================== */
+async function executeEngine(initialCode) {
+    logMsg("Tüm ağ trafiği ve şifre katmanları analiz ediliyor...", "warn");
+    
+    // Ağ ve Şifre kırma motorunu çalıştır
     let finalRawCode = await fetchAllLinks(initialCode);
     
-    // Ham kodu deobfuscate kutusuna yolla
-    document.getElementById("finalOutput").value = "-- [EMLOXA V3 DEOBFUSCATOR ÇIKTISI]\n\n" + finalRawCode;
-    logMsg("Tüm kodlar başarıyla deobfuscate edildi ve sol alta aktarıldı.", "warn");
+    // Ulaştığımız EN SAF kodu çıktı kutusuna yazdır
+    document.getElementById("finalOutput").value = "-- [EMLOXA V3 DEOBFUSCATOR FİNAL ÇIKTISI]\n\n" + finalRawCode;
+    logMsg("Tarama bitti. Ulaşılan en ham Roblox kodu (Output) kutusuna döküldü.", "magic");
 
-    // UI motorunu çalıştır
+    // Şimdi ulaştığımız bu temiz kodu UI olarak ekrana (Viewport) çiz
     const lines = finalRawCode.split('\n');
     let variables = {}; 
     const viewport = document.getElementById("viewport");
@@ -136,12 +173,12 @@ async function processCode(initialCode) {
         if (line === "" || line.startsWith("--")) return;
 
         try {
-            // Obje Yakalama
+            // Nesne oluşturma (local myFrame = Instance.new("Frame"))
             let instanceMatch = line.match(/(?:local\s+)?([a-zA-Z0-9_]+)\s*=\s*Instance\.new\((?:['"])([a-zA-Z0-9_]+)(?:['"])[^)]*\)/);
             if (instanceMatch) {
                 let varName = instanceMatch[1];
                 let className = instanceMatch[2];
-                logMsg(`[NESNE] ${className} oluşturuldu (${varName}).`, "instance");
+                logMsg(`[UI OLUŞTURULDU] ${className} (${varName})`, "instance");
 
                 let el = document.createElement("div");
                 if (className === "Frame" || className === "ScreenGui" || className === "ScrollingFrame") el.className = "rbx-frame";
@@ -153,7 +190,7 @@ async function processCode(initialCode) {
                 return;
             }
 
-            // Özellik Yakalama
+            // Nesne özellikleri (myFrame.Size = UDim2.new(...))
             let propMatch = line.match(/([a-zA-Z0-9_]+)\.([a-zA-Z0-9_]+)\s*=\s*(.+)/);
             if (propMatch) {
                 let varName = propMatch[1];
@@ -216,5 +253,5 @@ async function processCode(initialCode) {
         }
     });
 
-    logMsg("Tüm işlemler sorunsuz tamamlandı.", "warn");
+    logMsg("İşlem başarıyla sonlandırıldı.", "system");
 }
