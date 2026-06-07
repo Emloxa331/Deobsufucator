@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EMLOXA V3 - Web Deobfuscator & UI Sandbox</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1>EMLOXA V3 <span>// LUAU UI SANDBOX & DEOBFUSCATOR</span></h1>
+        <div class="controls">
+            <button id="executeBtn" onclick="runEmulator()">🚀 Script'i Çalıştır & Analiz Et</button>
+            <button id="clearBtn" onclick="clearAll()">🗑️ Temizle</button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="panel left-panel">
+            <div class="panel-header">📝 Obfuscated Code Input</div>
+            <div id="editor-container"></div>
+        </div>
+
+        <div class="panel right-panel">
+            <div class="panel-header">🖥️ Sanal Roblox Ekranı (Viewport)</div>
+            <div id="viewport">
+                </div>
+
+            <div class="panel-header">📡 Ağ & Olay Günlüğü (Logger)</div>
+            <div id="logger">
+                <div class="log-entry system">[SİSTEM] Emloxa V3 Sandbox başlatıldı. Script bekleniyor...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="emulator.js"></script>
+</body>
+              </html>
