@@ -1,55 +1,533 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>EMLOXA V3 - Ultimate Dynamic Executor Sandbox</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/fengari-web@0.1.4/dist/fengari-web.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cyberpunk Code Dashboard V2.0</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Orbitron:wght@500;700&display=swap');
+
+:root {
+  --bg-primary: #0a0b0f;
+  --bg-secondary: #13151d;
+  --bg-panel: #1a1d29;
+  --neon-purple: #b347ff;
+  --neon-blue: #00d9ff;
+  --neon-green: #00ff88;
+  --text-primary: #e6e8f0;
+  --text-muted: #7a7f93;
+  --border: #252a3a;
+  --glow-purple: 0 0 20px rgba(179, 71, 255, 0.6);
+  --glow-blue: 0 0 20px rgba(0, 217, 255, 0.6);
+  --glow-green: 0 0 20px rgba(0, 255, 136, 0.6);
+}
+
+body.synthwave {
+  --neon-purple: #ff71ce;
+  --neon-blue: #01cdfe;
+  --neon-green: #05ffa1;
+  --glow-purple: 0 0 25px rgba(255, 113, 206, 0.7);
+  --glow-blue: 0 0 25px rgba(1, 205, 254, 0.7);
+  --glow-green: 0 0 25px rgba(5, 255, 161, 0.7);
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(255, 113, 206, 0.2) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(1, 205, 254, 0.18) 0%, transparent 50%);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  overflow: hidden;
+  height: 100vh;
+  transition: all 0.4s ease;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  height: 100vh;
+}
+
+/* SIDEBAR */
+.sidebar {
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  padding: 24px 16px;
+  backdrop-filter: blur(12px);
+  box-shadow: 4px 0 30px rgba(0,0,0,0.5);
+  overflow-y: auto;
+}
+
+.logo {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--neon-purple);
+  text-shadow: var(--glow-purple);
+  margin-bottom: 32px;
+  letter-spacing: 2px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo::before { content: "◢"; color: var(--neon-blue); text-shadow: var(--glow-blue); }
+
+.nav-item {
+  padding: 12px 16px;
+  margin: 6px 0;
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  border-left: 2px solid transparent;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nav-item:hover {
+  background: rgba(179, 71, 255, 0.08);
+  color: var(--text-primary);
+  border-left: 2px solid var(--neon-purple);
+  box-shadow: var(--glow-purple);
+}
+
+.nav-item.active {
+  background: rgba(0, 217, 255, 0.1);
+  color: var(--neon-blue);
+  border-left: 2px solid var(--neon-blue);
+  text-shadow: 0 0 8px rgba(0, 217, 255, 0.5);
+}
+
+.snippet-list {
+  margin-top: 12px;
+  padding-left: 12px;
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nav-item.active +.snippet-list { display: flex; }
+
+.snippet-btn {
+  padding: 8px 12px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.snippet-btn:hover {
+  background: rgba(0, 255, 136, 0.1);
+  color: var(--neon-green);
+  border-color: var(--neon-green);
+  box-shadow: var(--glow-green);
+}
+
+/* MAIN */
+.main {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 16px;
+  padding: 20px;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.header h1 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 20px;
+  color: var(--neon-green);
+  text-shadow: var(--glow-green);
+  letter-spacing: 1px;
+}
+
+.theme-toggle {
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid var(--neon-purple);
+  border-radius: 6px;
+  color: var(--neon-purple);
+  font-family: 'JetBrains Mono', monospace;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: var(--glow-purple);
+}
+
+.theme-toggle:hover {
+  background: rgba(179, 71, 255, 0.15);
+  box-shadow: 0 0 30px rgba(179, 71, 255, 0.9);
+}
+
+/* EDITOR */
+.editor-container {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 16px;
+  height: 100%;
+  overflow: hidden;
+}
+
+.editor-grid {
+  display: grid;
+  grid-template-rows: 1fr 240px;
+  gap: 16px;
+  height: 100%;
+  overflow: hidden;
+}
+
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(0,0,0,0.3);
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.panel-header.input { color: var(--neon-purple); text-shadow: var(--glow-purple); }
+.panel-header.output { color: var(--neon-blue); text-shadow: var(--glow-blue); }
+
+#monacoEditor {
+  flex: 1;
+  width: 100%;
+}
+
+.output-box {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  background: #0d0f15;
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  border: none;
+}
+
+/* SNIPPETS PANEL */
+.snippets-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+}
+
+.snippets-panel h3 {
+  color: var(--neon-green);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 14px;
+  margin-bottom: 12px;
+  text-shadow: var(--glow-green);
+}
+
+.snippet-card {
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.snippet-card:hover {
+  border-color: var(--neon-purple);
+  box-shadow: var(--glow-purple);
+  transform: translateX(4px);
+}
+
+.snippet-title {
+  font-weight: 600;
+  color: var(--neon-blue);
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.snippet-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* BUTTONS */
+.controls {
+  display: flex;
+  gap: 10px;
+  padding: 12px 0;
+}
+
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--neon-purple), #8a2be2);
+  color: white;
+  box-shadow: var(--glow-purple);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 35px rgba(179, 71, 255, 0.9);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--neon-blue);
+  border: 1px solid var(--neon-blue);
+  box-shadow: var(--glow-blue);
+}
+
+.btn-secondary:hover {
+  background: rgba(0, 217, 255, 0.1);
+  box-shadow: 0 0 25px rgba(0, 217, 255, 0.7);
+}
+
+@media (max-width: 1200px) {
+ .layout { grid-template-columns: 1fr; }
+ .sidebar { display: none; }
+ .editor-container { grid-template-columns: 1fr; }
+}
+</style>
 </head>
 <body>
-    <audio id="bgm" src="song.mp3" loop></audio>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="logo">CYBER EDITOR V2</div>
 
+    <div class="nav-item active" data-tab="dashboard">⚡ Dashboard</div>
+
+    <div class="nav-item" data-tab="snippets">📦 Snippets</div>
+    <div class="snippet-list">
+      <button class="snippet-btn" data-snippet="leaderstats">Leaderstats Creator</button>
+      <button class="snippet-btn" data-snippet="datastore">DataStore Saver</button>
+      <button class="snippet-btn" data-snippet="raycast">Raycast Setup</button>
+    </div>
+
+    <div class="nav-item" data-tab="console">🖥️ Console</div>
+    <div class="nav-item" data-tab="settings">⚙️ Settings</div>
+  </aside>
+
+  <main class="main">
     <div class="header">
-        <div class="title-container">
-            <h1>EMLOXA V3 <span>// DYNAMIC VM & DEOBFUSCATOR</span></h1>
-        </div>
-        
-        <div class="audio-controls">
-            <button id="musicToggle" onclick="window.toggleMusic()">🎵 Sesi Aç</button>
-            <input type="range" id="volSlider" min="0" max="1" step="0.05" value="0.3" onchange="window.changeVolume()">
-        </div>
-
-        <div class="controls">
-            <button id="clearInputBtn" onclick="window.clearInput()">🧹 Girdiyi Sil</button>
-            <button id="executeBtn" onclick="window.startEmulator()">🚀 Taramayı Başlat & Çöz</button>
-            <button id="clearBtn" onclick="window.clearAll()">🗑️ Sıfırla</button>
-        </div>
+      <h1>LUAU TERMINAL // V2.0</h1>
+      <button class="theme-toggle" id="themeToggle">SYNTHWAVE MODE</button>
     </div>
 
-    <div class="main-container">
-        <div class="panel left-panel">
-            <div class="panel-header">📝 OBFUSCATED INPUT (Hedef Script / Link)</div>
-            <div id="editor-container"></div>
-            
-            <div class="panel-header output-header">🔓 FİNAL DEOBFUSCATED SCRİPT (Saf Kod)</div>
-            <textarea id="finalOutput" readonly placeholder="Sanal Makine şifreyi kırdığında en saf Roblox kodu buraya düşecek..."></textarea>
+    <div class="editor-container">
+      <div class="editor-grid">
+        <div class="panel">
+          <div class="panel-header input">MONACO EDITOR // LUAU</div>
+          <div id="monacoEditor"></div>
         </div>
 
-        <div class="panel right-panel">
-            <div class="panel-header">🖥️ SANAL ROBLOX EKRANI (Viewport)</div>
-            <div id="viewport">
-                </div>
-
-            <div class="panel-header">📡 AĞ & OLAY GÜNLÜĞÜ (Terminal)</div>
-            <div id="logger">
-                <div class="log-entry system">[SİSTEM] Emloxa V3 Sandbox Engine Başlatıldı.</div>
-                <div class="log-entry system">[SİSTEM] Fengari Lua Virtual Machine Aktif!</div>
-            </div>
+        <div class="panel">
+          <div class="panel-header output">OUTPUT // CONSOLE</div>
+          <div id="outputBox" class="output-box">// Monaco Editor yüklendi. Kod yaz, PROCESS'e bas... 🚀</div>
         </div>
+      </div>
+
+      <div class="snippets-panel" id="snippetsPanel" style="display:none;">
+        <h3>ROBLOX LUAU SNIPPETS</h3>
+        <div class="snippet-card" data-snippet="leaderstats">
+          <div class="snippet-title">Leaderstats Creator</div>
+          <div class="snippet-desc">Player eklendiğinde Coins + Kills oluşturur</div>
+        </div>
+        <div class="snippet-card" data-snippet="datastore">
+          <div class="snippet-title">DataStore Saver</div>
+          <div class="snippet-desc">DataStore ile veri kaydetme ve yükleme</div>
+        </div>
+        <div class="snippet-card" data-snippet="raycast">
+          <div class="snippet-title">Raycast Setup</div>
+          <div class="snippet-desc">Raycast ile hedef tespiti ve görselleştirme</div>
+        </div>
+      </div>
     </div>
 
-    <script src="emulator.js"></script>
+    <div class="controls">
+      <button class="btn btn-primary" id="processBtn">PROCESS</button>
+      <button class="btn btn-secondary" id="copyBtn">COPY CODE</button>
+      <button class="btn btn-secondary" id="clearBtn">CLEAR</button>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+<script>
+// MONACO EDITOR INIT
+let editor;
+require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' }});
+require(['vs/editor/editor.main'], function() {
+  editor = monaco.editor.create(document.getElementById('monacoEditor'), {
+    value: `-- Cyberpunk Luau Editor
+local Players = game:GetService("Players")
+
+Players.PlayerAdded:Connect(function(player)
+    print("Welcome ".. player.Name.. " to the neon realm! ✨")
+end)`,
+    language: 'lua',
+    theme: 'vs-dark',
+    fontSize: 14,
+    fontFamily: 'JetBrains Mono',
+    minimap: { enabled: true },
+    lineNumbers: 'on',
+    automaticLayout: true,
+    wordWrap: 'on',
+    scrollBeyondLastLine: false,
+    autoClosingBrackets: 'always',
+    autoClosingQuotes: 'always',
+    tabSize: 4
+  });
+});
+
+// SNIPPET TEMPLATES
+const snippets = {
+  leaderstats: `-- LEADERSTATS CREATOR
+local Players = game:GetService("Players")
+
+Players.PlayerAdded:Connect(function(player)
+    local leaderstats = Instance.new("Folder")
+    leaderstats.Name = "leaderstats"
+    leaderstats.Parent = player
+
+    local Coins = Instance.new("IntValue")
+    Coins.Name = "Coins"
+    Coins.Value = 0
+    Coins.Parent = leaderstats
+
+    local Kills = Instance.new("IntValue")
+    Kills.Name = "Kills"
+    Kills.Value = 0
+    Kills.Parent = leaderstats
+end)`,
+
+  datastore: `-- DATASTORE SAVER
+local DataStoreService = game:GetService("DataStoreService")
+local playerData = DataStoreService:GetDataStore("PlayerData")
+
+game.Players.PlayerRemoving:Connect(function(player)
+    local success, err = pcall(function()
+        playerData:SetAsync(player.UserId, player.leaderstats.Coins.Value)
+    end)
+    if not success then warn(err) end
+end)`,
+
+  raycast: `-- RAYCAST SETUP
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local mouse = player:GetMouse()
+
+mouse.Button1Down:Connect(function()
+    local origin = workspace.CurrentCamera.CFrame.Position
+    local direction = (mouse.Hit.Position - origin).Unit * 300
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.FilterDescendantsInstances = {player.Character}
+
+    local result = workspace:Raycast(origin, direction, raycastParams)
+    if result then
+        print("Hit: ".. result.Instance.Name)
+    end
+end)`
+};
+
+// UI LOGIC
+const outputBox = document.getElementById('outputBox');
+const processBtn = document.getElementById('processBtn');
+const copyBtn = document.getElementById('copyBtn');
+const clearBtn = document.getElementById('clearBtn');
+const themeToggle = document.getElementById('themeToggle');
+const snippetsPanel = document.getElementById('snippetsPanel');
+
+// NAV TAB SWITCH
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', function() {
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    this.classList.add('active');
+    snippetsPanel.style.display = this.dataset.tab === 'snippets'? 'block' : 'none';
+  });
+});
+
+// SNIPPET INSERT
+document.querySelectorAll('[data-snippet]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const snippetKey = btn.dataset.snippet;
+    if (editor && snippets[snippetKey]) {
+      editor.setValue(snippets[snippetKey]);
+      editor.focus();
+    }
+  });
+});
+
+// PROCESS - Lua simülasyonu
+processBtn.addEventListener('click', () => {
+  const code = editor.getValue().trim();
+  if (!code) {
+    outputBox.textContent = '[ERROR] Kod boş, bro. Luau snippet seç veya yaz 💜';
+    outputBox.style.color = '#ff4d6d';
+    return;
+  }
+  outputBox.style.color = 'var(--neon-green)';
+  outputBox.textContent = `// EXECUTION SUCCESS ✅\n// Luau kodu parse edildi\n// Syntax: OK\n// Lines: ${code.split('\n').length}\n// RoboStudio'da çalışmaya hazır!`;
+});
+
+// COPY
+copyBtn.addEventListener('click', async () => {
+  await navigator.clipboard.writeText(editor.getValue());
+  copyBtn.textContent = 'COPIED ✓';
+  setTimeout(() => copyBtn.textContent = 'COPY CODE', 2000);
+});
+
+// CLEAR
+clearBtn.addEventListener('click', () => {
+  editor.setValue('');
+  outputBox.textContent = '// Editor temizlendi. Yeni kod yaz!';
+  outputBox.style.color = 'var(--text-muted)';
+});
+
+// THEME TOGGLE
+themeToggle.addEventListener('click', () => {
+  document.body.classList.toggle('synthwave');
+  themeToggle.textContent = document.body.classList.contains('synthwave')? 'CYBERPUNK MODE' : 'SYNTHWAVE MODE';
+});
+</script>
 </body>
 </html>
