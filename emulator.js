@@ -44,19 +44,25 @@ window.startEmulator = async function() {
         }
         
         document.getElementById("finalOutput").value = "-- İnternet üzerindeki tüm ağlar taranıyor...\n";
+        
+        // İşlemin üst üste binmesini engellemek için butonu kısa süreliğine devre dışı bırak
+        document.getElementById("executeBtn").disabled = true;
         await processCode(code);
+        document.getElementById("executeBtn").disabled = false;
 
     } catch (error) {
         logMsg(`[SİSTEM HATASI] Motor çöktü: ${error.message}`, "warn");
+        document.getElementById("executeBtn").disabled = false;
     }
 };
 
-// 🚀 ZİNCİRLEME EXECUTOR MOTORU (RECURSIVE FETCHER)
+// 🚀 YENİ NESİL ZİNCİRLEME EXECUTOR MOTORU (ÇİFT KATMANLI BYPASS)
 async function fetchAllLinks(code, depth = 0) {
-    // Sonsuz döngüye girmemesi için max 10 derinlik sınırı koyduk
-    if (depth > 10) return code;
+    if (depth > 10) {
+        logMsg("[GÜVENLİK] Maksimum derinliğe ulaşıldı (Sonsuz döngü engellendi).", "warn");
+        return code;
+    }
 
-    // HttpGet veya HttpGetAsync komutlarını algıla
     const httpRegex = /(?:loadstring\()?\s*game:HttpGet(?:Async)?\(\s*(['"])(https?:\/\/[^\1]+)\1\s*\)\s*(?:\)\(\))?/i;
     let match = code.match(httpRegex);
 
@@ -64,53 +70,63 @@ async function fetchAllLinks(code, depth = 0) {
         let fullMatch = match[0];
         let url = match[2];
         
-        logMsg(`[AĞ İSTEĞİ ${depth+1}] Tespit Edildi: ${url}`, "http");
+        logMsg(`[AĞ İSTEĞİ ${depth+1}] Hedef: ${url}`, "http");
         
         try {
-            // EXECUTOR SPOOFING: Tarayıcı engelini (CORS) aşmak ve Executor gibi davranmak için public proxy kullanıyoruz
-            let proxyUrl = "https://api.allorigins.win/get?url=" + encodeURIComponent(url);
-            logMsg("Executor kimliği (User-Agent) taklit edilerek sunucuya sızılıyor...", "warn");
-            
-            const response = await fetch(proxyUrl);
-            if (!response.ok) throw new Error("HTTP " + response.status);
-            
-            const data = await response.json();
-            let fetchedCode = data.contents;
-            
-            if(!fetchedCode) throw new Error("Boş veri döndü.");
+            let fetchedCode = "";
 
-            logMsg(`[BAŞARILI] Aşama ${depth+1} tamam. İç kodlar çekildi.`, "system");
+            // PLAN A: Doğrudan İstek (GitHub Raw gibi siteler için en hızlısı)
+            try {
+                let response = await fetch(url);
+                if (response.ok) {
+                    fetchedCode = await response.text();
+                    logMsg(`[BAŞARILI] Veri doğrudan kaynaktan çekildi.`, "system");
+                } else {
+                    throw new Error("Doğrudan erişim reddedildi.");
+                }
+            } catch (err1) {
+                // PLAN B: CORS Proxy (Eğer hedef site tarayıcıyı engellerse proxy ile vururuz)
+                logMsg(`[B-PLANI] Tarayıcı engeli algılandı. Tünel protokolü kullanılıyor...`, "warn");
+                let proxyUrl = "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(url);
+                
+                let response2 = await fetch(proxyUrl);
+                if (!response2.ok) throw new Error("Tünel bağlantısı da başarısız oldu.");
+                
+                fetchedCode = await response2.text();
+                logMsg(`[BAŞARILI] Veri tünel üzerinden çekildi.`, "system");
+            }
 
-            // İndirilen kodu, asıl kodun içindeki o linkin yerine yerleştiriyoruz!
+            if (!fetchedCode || fetchedCode.trim() === "") throw new Error("Çekilen veri tamamen boş.");
+
+            // İndirilen kodu sisteme entegre et
             code = code.replace(fullMatch, "\n-- EMLOXA_FETCH_START (" + url + ")\n" + fetchedCode + "\n-- EMLOXA_FETCH_END\n");
 
-            // İndirdiğimiz kodun içinde BAŞKA LİNKLER var mı diye tekrar kontrol ediyoruz (Zincirleme)
+            // Zincirleme taramaya devam et (İçinde başka link varsa onları da bulur)
             return await fetchAllLinks(code, depth + 1);
 
         } catch (error) {
-            logMsg(`[BAĞLANTI HATASI] Link atlanıyor: ${error.message}`, "warn");
-            // Hata verirse o kısmı temizle ki motor diğer kodlara devam etsin
-            code = code.replace(fullMatch, "-- [EMLOXA: Bağlantı Sağlanamadı]");
-            return code;
+            logMsg(`[BAĞLANTI HATASI] ${url} çekilemedi: ${error.message}`, "warn");
+            // Hata alırsak döngünün kilitlenmemesi için o isteği siliyoruz ve kalanları aramaya devam ediyoruz.
+            code = code.replace(fullMatch, "-- [EMLOXA: Bağlantı Sağlanamadı - " + url + "]");
+            return await fetchAllLinks(code, depth + 1);
         }
     }
     
-    // Eğer kodun içinde başka link kalmadıysa nihai kodu geri döndür
     return code;
 }
 
 // 🖥️ ANA ANALİZ VE UI ÇİZİM MOTORU
 async function processCode(initialCode) {
-    // 1. AŞAMA: Tüm linkleri zincirleme olarak iç içe indir ve gerçek kodu ortaya çıkar
     logMsg("Script inceleniyor, ağ bağlantıları aranıyor...", "system");
+    
+    // Ağ taramasını başlat
     let finalRawCode = await fetchAllLinks(initialCode);
     
-    // 2. AŞAMA: İndirilen ham (raw) temizlenmiş kodu, Final Output kutusuna yazdır!
-    // Bu sayede UI (Arayüz) oluşturmasa bile scriptin asıl kaynak kodunu %100 görebileceksin.
-    document.getElementById("finalOutput").value = "-- [EMLOXA V3 DEOBFUSCATOR ÇIKTISI]\n" + finalRawCode;
+    // Ham kodu deobfuscate kutusuna yolla
+    document.getElementById("finalOutput").value = "-- [EMLOXA V3 DEOBFUSCATOR ÇIKTISI]\n\n" + finalRawCode;
     logMsg("Tüm kodlar başarıyla deobfuscate edildi ve sol alta aktarıldı.", "warn");
 
-    // 3. AŞAMA: Sanal Ekranda (Viewport) UI Çizme İşlemi
+    // UI motorunu çalıştır
     const lines = finalRawCode.split('\n');
     let variables = {}; 
     const viewport = document.getElementById("viewport");
@@ -120,7 +136,7 @@ async function processCode(initialCode) {
         if (line === "" || line.startsWith("--")) return;
 
         try {
-            // Obje Oluşturma (local var = Instance.new("Frame", Parent) desteği eklendi)
+            // Obje Yakalama
             let instanceMatch = line.match(/(?:local\s+)?([a-zA-Z0-9_]+)\s*=\s*Instance\.new\((?:['"])([a-zA-Z0-9_]+)(?:['"])[^)]*\)/);
             if (instanceMatch) {
                 let varName = instanceMatch[1];
@@ -137,7 +153,7 @@ async function processCode(initialCode) {
                 return;
             }
 
-            // Özellik Değiştirme (Daha esnek hale getirildi)
+            // Özellik Yakalama
             let propMatch = line.match(/([a-zA-Z0-9_]+)\.([a-zA-Z0-9_]+)\s*=\s*(.+)/);
             if (propMatch) {
                 let varName = propMatch[1];
@@ -147,7 +163,6 @@ async function processCode(initialCode) {
                 if (!variables[varName]) return; 
                 let obj = variables[varName];
                 
-                // Arayüz motoru çizimleri
                 if (prop === "Size" && value.includes("UDim2.new")) {
                     let nums = value.match(/[-]?\d+(\.\d+)?/g);
                     if(nums && nums.length >= 4) {
@@ -197,7 +212,7 @@ async function processCode(initialCode) {
                 }
             }
         } catch (e) {
-            // Hatayı atla, motor çökmese
+            // Hata atla
         }
     });
 
