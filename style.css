@@ -2,64 +2,58 @@
 
 body { background-color: #0d1117; color: #c9d1d9; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-/* Üst Başlık ve Butonlar */
 .header { background-color: #161b22; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #30363d; }
-.title-container h1 { font-size: 1.4rem; color: #58a6ff; text-shadow: 0 0 5px rgba(88, 166, 255, 0.5); }
+.title-container h1 { font-size: 1.4rem; color: #58a6ff; text-shadow: 0 0 5px rgba(88, 166, 255, 0.4); }
 .title-container span { color: #8b949e; font-size: 0.8rem; letter-spacing: 1px; }
 
 .controls { display: flex; gap: 10px; }
-button { background-color: #238636; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; font-size: 0.85rem;}
+button { background-color: #238636; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; font-size: 0.85rem;}
 button#clearBtn { background-color: #da3633; }
 button#clearInputBtn { background-color: #8b949e; color: #0d1117; }
-button:hover { filter: brightness(1.2); transform: scale(1.02); }
+button:hover { filter: brightness(1.2); transform: translateY(-1px); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* Ana Paneller (Bilgisayar İçin) */
 .main-container { display: flex; flex: 1; height: calc(100vh - 70px); }
 .panel { display: flex; flex-direction: column; width: 50%; border-right: 2px solid #30363d; }
 
-.panel-header { background-color: #21262d; padding: 10px 15px; font-size: 0.85rem; color: #8b949e; border-bottom: 1px solid #30363d; border-top: 1px solid #30363d; text-transform: uppercase; font-weight: bold;}
+.panel-header { background-color: #21262d; padding: 10px 15px; font-size: 0.85rem; color: #8b949e; border-bottom: 1px solid #30363d; border-top: 1px solid #30363d; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;}
 .output-header { color: #3fb950; }
 
 #editor-container { flex: 1; min-height: 50%; width: 100%; }
-#finalOutput { flex: 0.8; min-height: 30%; width: 100%; background-color: #010409; color: #3fb950; border: none; padding: 15px; resize: none; font-size: 0.9rem; outline: none; }
+#finalOutput { flex: 0.8; min-height: 30%; width: 100%; background-color: #010409; color: #3fb950; border: none; padding: 15px; resize: none; font-size: 0.85rem; outline: none; white-space: pre-wrap;}
 
-/* Merkezlenmiş Sanal Ekran */
+/* Roblox Baseplate Tarzı Viewport */
 #viewport { 
-    flex: 1.5; background-color: #000000; 
+    flex: 1.5; background-color: #111; 
     background-image: radial-gradient(#30363d 1px, transparent 1px); 
-    background-size: 20px 20px; position: relative; overflow: hidden;
-    display: flex; align-items: center; justify-content: center; /* İçindekini merkeze alır */
+    background-size: 25px 25px; position: relative; overflow: hidden;
+    display: flex; align-items: center; justify-content: center; 
 }
 
-/* Logger */
+/* Terminal Tipi Logger */
 #logger { height: 35%; background-color: #010409; overflow-y: auto; padding: 10px; font-size: 0.85rem; border-top: 2px solid #30363d; }
-.log-entry { margin-bottom: 6px; border-left: 3px solid transparent; padding-left: 5px; }
+.log-entry { margin-bottom: 6px; border-left: 3px solid transparent; padding-left: 8px; line-height: 1.4;}
 .log-entry.system { color: #8b949e; border-color: #8b949e; }
 .log-entry.instance { color: #58a6ff; border-color: #58a6ff; }
 .log-entry.property { color: #c9d1d9; border-color: #3fb950; }
 .log-entry.warn { color: #d29922; border-color: #d29922; font-weight: bold; }
 .log-entry.http { color: #ff7b72; border-color: #ff7b72; font-weight: bold; }
+.log-entry.magic { color: #bc8cff; border-color: #bc8cff; font-weight: bold; } /* Şifre Kırıcı Rengi */
 
-/* Fake Roblox UI */
-.rbx-frame { position: relative; background-color: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+/* Sahte Roblox UI Objeleri */
+.rbx-frame { position: relative; background-color: #fff; box-shadow: 0 5px 15px rgba(0,0,0,0.6); }
 .rbx-textlabel { position: absolute; color: #000; display: flex; align-items: center; justify-content: center; user-select: none; }
 .rbx-textbutton { position: absolute; color: #000; cursor: pointer; display: flex; align-items: center; justify-content: center; border: 1px solid #000; font-weight: bold; }
 
-/* =========================================================
-   MOBİL (TELEFON) UYUMU - Sihrin Gerçekleştiği Yer
-========================================================= */
 @media screen and (max-width: 768px) {
-    body { height: auto; overflow-y: auto; overflow-x: hidden; }
+    body { height: auto; overflow-y: auto; }
     .header { flex-direction: column; align-items: flex-start; gap: 15px; padding: 15px; }
     .controls { flex-wrap: wrap; width: 100%; justify-content: space-between; }
     .controls button { flex: 1 1 30%; font-size: 0.75rem; padding: 12px 5px; margin: 0; text-align: center; }
-    
     .main-container { flex-direction: column; height: auto; }
     .panel { width: 100%; border-right: none; }
-    
-    /* Telefonda alanlara sabit yükseklik veriyoruz ki ezilmesinler */
-    #editor-container { height: 300px; flex: none; }
-    #finalOutput { height: 200px; flex: none; }
+    #editor-container { height: 250px; flex: none; }
+    #finalOutput { height: 250px; flex: none; }
     #viewport { height: 350px; flex: none; border-top: 2px solid #30363d; border-bottom: 2px solid #30363d; }
     #logger { height: 250px; flex: none; }
 }
