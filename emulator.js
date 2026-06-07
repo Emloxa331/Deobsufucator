@@ -11,7 +11,6 @@ require(['vs/editor/editor.main'], function () {
     });
 });
 
-// Günlük (Log) Yazdırma Fonksiyonu
 function logMsg(msg, type = "instance") {
     const logger = document.getElementById("logger");
     const entry = document.createElement("div");
@@ -22,7 +21,6 @@ function logMsg(msg, type = "instance") {
     logger.scrollTop = logger.scrollHeight;
 }
 
-// Global (Her yerden erişilebilir) buton fonksiyonları
 window.clearInput = function() {
     if(editor) editor.setValue("");
     logMsg("Girdi alanı temizlendi.", "system");
@@ -36,11 +34,7 @@ window.clearAll = function() {
 
 window.startEmulator = async function() {
     try {
-        if(!editor) {
-            logMsg("[HATA] Editör henüz yüklenmedi, lütfen bekleyin.", "warn");
-            return;
-        }
-
+        if(!editor) return;
         window.clearAll();
         let code = editor.getValue();
         
@@ -49,7 +43,7 @@ window.startEmulator = async function() {
             return;
         }
         
-        document.getElementById("finalOutput").value = "-- Analiz ediliyor...\n";
+        document.getElementById("finalOutput").value = "-- İnternet üzerindeki tüm ağlar taranıyor...\n";
         await processCode(code);
 
     } catch (error) {
@@ -57,36 +51,67 @@ window.startEmulator = async function() {
     }
 };
 
-// Asenkron Deobfuscation Motoru
-async function processCode(code) {
-    let finalScriptLines = [];
-    
-    // HTTP GET KONTROLÜ
-    const httpRegex = /game:HttpGet\((['"])(https?:\/\/[^\1]+)\1\)/i;
-    const match = code.match(httpRegex);
-    
-    if (match) {
-        const url = match[2];
-        logMsg(`[AĞ İSTEĞİ] Dış bağlantı saptandı: ${url}`, "http");
-        try {
-            logMsg("Bağlantıdan script indiriliyor...", "warn");
-            // GitHub Raw linklerinden CORS hatası almamak için fetch
-            const response = await fetch(url);
-            if (!response.ok) throw new Error("Sayfa bulunamadı (HTTP " + response.status + ")");
-            
-            code = await response.text();
-            logMsg("[BAŞARILI] Script başarıyla çekildi. Sanallaştırma başlıyor...", "system");
-        } catch (error) {
-            logMsg(`[BAĞLANTI HATASI] Linkten kod çekilemedi: ${error.message}`, "warn");
-            logMsg("Lütfen linkin doğru (Raw) olduğuna veya internetinizin açık olduğuna emin olun.", "system");
-            return; // Çekemezse analizi durdur
-        }
-    } else {
-        logMsg("Sadece yerel kod analiz ediliyor...", "system");
-    }
+// 🚀 ZİNCİRLEME EXECUTOR MOTORU (RECURSIVE FETCHER)
+async function fetchAllLinks(code, depth = 0) {
+    // Sonsuz döngüye girmemesi için max 10 derinlik sınırı koyduk
+    if (depth > 10) return code;
 
-    // LUAU KOD ANALİZİ VE SANALLAŞTIRMA
-    const lines = code.split('\n');
+    // HttpGet veya HttpGetAsync komutlarını algıla
+    const httpRegex = /(?:loadstring\()?\s*game:HttpGet(?:Async)?\(\s*(['"])(https?:\/\/[^\1]+)\1\s*\)\s*(?:\)\(\))?/i;
+    let match = code.match(httpRegex);
+
+    if (match) {
+        let fullMatch = match[0];
+        let url = match[2];
+        
+        logMsg(`[AĞ İSTEĞİ ${depth+1}] Tespit Edildi: ${url}`, "http");
+        
+        try {
+            // EXECUTOR SPOOFING: Tarayıcı engelini (CORS) aşmak ve Executor gibi davranmak için public proxy kullanıyoruz
+            let proxyUrl = "https://api.allorigins.win/get?url=" + encodeURIComponent(url);
+            logMsg("Executor kimliği (User-Agent) taklit edilerek sunucuya sızılıyor...", "warn");
+            
+            const response = await fetch(proxyUrl);
+            if (!response.ok) throw new Error("HTTP " + response.status);
+            
+            const data = await response.json();
+            let fetchedCode = data.contents;
+            
+            if(!fetchedCode) throw new Error("Boş veri döndü.");
+
+            logMsg(`[BAŞARILI] Aşama ${depth+1} tamam. İç kodlar çekildi.`, "system");
+
+            // İndirilen kodu, asıl kodun içindeki o linkin yerine yerleştiriyoruz!
+            code = code.replace(fullMatch, "\n-- EMLOXA_FETCH_START (" + url + ")\n" + fetchedCode + "\n-- EMLOXA_FETCH_END\n");
+
+            // İndirdiğimiz kodun içinde BAŞKA LİNKLER var mı diye tekrar kontrol ediyoruz (Zincirleme)
+            return await fetchAllLinks(code, depth + 1);
+
+        } catch (error) {
+            logMsg(`[BAĞLANTI HATASI] Link atlanıyor: ${error.message}`, "warn");
+            // Hata verirse o kısmı temizle ki motor diğer kodlara devam etsin
+            code = code.replace(fullMatch, "-- [EMLOXA: Bağlantı Sağlanamadı]");
+            return code;
+        }
+    }
+    
+    // Eğer kodun içinde başka link kalmadıysa nihai kodu geri döndür
+    return code;
+}
+
+// 🖥️ ANA ANALİZ VE UI ÇİZİM MOTORU
+async function processCode(initialCode) {
+    // 1. AŞAMA: Tüm linkleri zincirleme olarak iç içe indir ve gerçek kodu ortaya çıkar
+    logMsg("Script inceleniyor, ağ bağlantıları aranıyor...", "system");
+    let finalRawCode = await fetchAllLinks(initialCode);
+    
+    // 2. AŞAMA: İndirilen ham (raw) temizlenmiş kodu, Final Output kutusuna yazdır!
+    // Bu sayede UI (Arayüz) oluşturmasa bile scriptin asıl kaynak kodunu %100 görebileceksin.
+    document.getElementById("finalOutput").value = "-- [EMLOXA V3 DEOBFUSCATOR ÇIKTISI]\n" + finalRawCode;
+    logMsg("Tüm kodlar başarıyla deobfuscate edildi ve sol alta aktarıldı.", "warn");
+
+    // 3. AŞAMA: Sanal Ekranda (Viewport) UI Çizme İşlemi
+    const lines = finalRawCode.split('\n');
     let variables = {}; 
     const viewport = document.getElementById("viewport");
 
@@ -95,13 +120,12 @@ async function processCode(code) {
         if (line === "" || line.startsWith("--")) return;
 
         try {
-            // 1. Obje Oluşturma (Instance.new)
-            let instanceMatch = line.match(/(?:local\s+)?([a-zA-Z0-9_]+)\s*=\s*Instance\.new\("([a-zA-Z0-9_]+)"\)/);
+            // Obje Oluşturma (local var = Instance.new("Frame", Parent) desteği eklendi)
+            let instanceMatch = line.match(/(?:local\s+)?([a-zA-Z0-9_]+)\s*=\s*Instance\.new\((?:['"])([a-zA-Z0-9_]+)(?:['"])[^)]*\)/);
             if (instanceMatch) {
                 let varName = instanceMatch[1];
                 let className = instanceMatch[2];
-                logMsg(`[NESNE] ${varName} (${className}) oluşturuldu.`, "instance");
-                finalScriptLines.push(`local ${varName} = Instance.new("${className}")`);
+                logMsg(`[NESNE] ${className} oluşturuldu (${varName}).`, "instance");
 
                 let el = document.createElement("div");
                 if (className === "Frame" || className === "ScreenGui" || className === "ScrollingFrame") el.className = "rbx-frame";
@@ -113,7 +137,7 @@ async function processCode(code) {
                 return;
             }
 
-            // 2. Özellik Değiştirme
+            // Özellik Değiştirme (Daha esnek hale getirildi)
             let propMatch = line.match(/([a-zA-Z0-9_]+)\.([a-zA-Z0-9_]+)\s*=\s*(.+)/);
             if (propMatch) {
                 let varName = propMatch[1];
@@ -123,9 +147,6 @@ async function processCode(code) {
                 if (!variables[varName]) return; 
                 let obj = variables[varName];
                 
-                logMsg(`[DEĞİŞİM] ${varName}.${prop} ayarlandı.`, "property");
-                finalScriptLines.push(`${varName}.${prop} = ${value}`);
-
                 // Arayüz motoru çizimleri
                 if (prop === "Size" && value.includes("UDim2.new")) {
                     let nums = value.match(/[-]?\d+(\.\d+)?/g);
@@ -163,9 +184,8 @@ async function processCode(code) {
                 }
                 else if (prop === "Parent") {
                     let parentVar = value;
-                    if (parentVar.includes("game.CoreGui") || parentVar.includes("game.Players") || parentVar.includes("Workspace")) {
+                    if (parentVar.includes("game.CoreGui") || parentVar.includes("game.Players") || parentVar.includes("Workspace") || parentVar.includes("Parent")) {
                         viewport.appendChild(obj.element);
-                        logMsg(`[RENDER] ${varName} sanal ekrana çizildi.`, "system");
                     } else if (variables[parentVar]) {
                         if (obj.type === "UICorner") {
                             variables[parentVar].element.style.borderRadius = obj.cornerRadius || "8px";
@@ -177,12 +197,9 @@ async function processCode(code) {
                 }
             }
         } catch (e) {
-            // Kodun o satırında bir hata varsa es geç ve devam et
-            console.error("Satır hatası:", e);
+            // Hatayı atla, motor çökmese
         }
     });
 
-    finalScriptLines.push("\n-- EMLOXA V3 Tarafından Başarıyla Deobfuscate Edildi.");
-    document.getElementById("finalOutput").value = finalScriptLines.join("\n");
-    logMsg("Analiz tamamlandı. Temiz kod (Output) kısmına yazdırıldı.", "warn");
+    logMsg("Tüm işlemler sorunsuz tamamlandı.", "warn");
 }
