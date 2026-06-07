@@ -11,15 +11,19 @@
     <div class="header">
         <h1>EMLOXA V3 <span>// LUAU UI SANDBOX & DEOBFUSCATOR</span></h1>
         <div class="controls">
-            <button id="executeBtn" onclick="runEmulator()">🚀 Script'i Çalıştır & Analiz Et</button>
-            <button id="clearBtn" onclick="clearAll()">🗑️ Temizle</button>
+            <button id="clearInputBtn" onclick="clearInput()">🧹 Girdiyi Sil</button>
+            <button id="executeBtn" onclick="startEmulator()">🚀 Çalıştır & Analiz Et</button>
+            <button id="clearBtn" onclick="clearAll()">🗑️ Her Şeyi Sıfırla</button>
         </div>
     </div>
 
     <div class="main-container">
         <div class="panel left-panel">
-            <div class="panel-header">📝 Obfuscated Code Input</div>
+            <div class="panel-header">📝 Obfuscated Input (Scripti Buraya Girin)</div>
             <div id="editor-container"></div>
+            
+            <div class="panel-header output-header">🔓 Final Deobfuscated Script (Temiz Kod)</div>
+            <textarea id="finalOutput" readonly placeholder="Analiz bittikten sonra temiz kod burada belirecek..."></textarea>
         </div>
 
         <div class="panel right-panel">
@@ -36,4 +40,4 @@
 
     <script src="emulator.js"></script>
 </body>
-              </html>
+</html>
