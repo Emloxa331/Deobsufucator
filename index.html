@@ -3,19 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>EMLOXA V3 - Heuristic Deobfuscator & Executor Sandbox</title>
+    <title>EMLOXA V3 - Ultimate Dynamic Executor Sandbox</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fengari-web@0.1.4/dist/fengari-web.js"></script>
 </head>
 <body>
+    <audio id="bgm" src="song.mp3" loop></audio>
+
     <div class="header">
         <div class="title-container">
-            <h1>EMLOXA V3 <span>// EXECUTOR & DEOBFUSCATOR ENGINE</span></h1>
+            <h1>EMLOXA V3 <span>// DYNAMIC VM & DEOBFUSCATOR</span></h1>
         </div>
+        
+        <div class="audio-controls">
+            <button id="musicToggle" onclick="window.toggleMusic()">🎵 Sesi Aç</button>
+            <input type="range" id="volSlider" min="0" max="1" step="0.05" value="0.3" onchange="window.changeVolume()">
+        </div>
+
         <div class="controls">
             <button id="clearInputBtn" onclick="window.clearInput()">🧹 Girdiyi Sil</button>
             <button id="executeBtn" onclick="window.startEmulator()">🚀 Taramayı Başlat & Çöz</button>
-            <button id="clearBtn" onclick="window.clearAll()">🗑️ Sistemi Sıfırla</button>
+            <button id="clearBtn" onclick="window.clearAll()">🗑️ Sıfırla</button>
         </div>
     </div>
 
@@ -24,8 +33,8 @@
             <div class="panel-header">📝 OBFUSCATED INPUT (Hedef Script / Link)</div>
             <div id="editor-container"></div>
             
-            <div class="panel-header output-header">🔓 FİNAL DEOBFUSCATED SCRİPT (Şifresi Kırılmış Saf Kod)</div>
-            <textarea id="finalOutput" readonly placeholder="Derin tarama bittikten sonra en saf Roblox kodu burada belirecek..."></textarea>
+            <div class="panel-header output-header">🔓 FİNAL DEOBFUSCATED SCRİPT (Saf Kod)</div>
+            <textarea id="finalOutput" readonly placeholder="Sanal Makine şifreyi kırdığında en saf Roblox kodu buraya düşecek..."></textarea>
         </div>
 
         <div class="panel right-panel">
@@ -36,7 +45,7 @@
             <div class="panel-header">📡 AĞ & OLAY GÜNLÜĞÜ (Terminal)</div>
             <div id="logger">
                 <div class="log-entry system">[SİSTEM] Emloxa V3 Sandbox Engine Başlatıldı.</div>
-                <div class="log-entry system">[SİSTEM] Derin Şifre Kırıcı (Heuristic Deobfuscator) Aktif.</div>
+                <div class="log-entry system">[SİSTEM] Fengari Lua Virtual Machine Aktif!</div>
             </div>
         </div>
     </div>
